@@ -11,10 +11,24 @@ const notificationSchema = new mongoose.Schema(
       type: mongoose.Schema.Types.ObjectId,
       ref: "Event",
     },
-    message: String,
-    type: String,
-    status: { type: String, default: "unread" },
-    sentAt: { type: Date, default: Date.now },
+    message: {
+      type: String,
+      required: true,
+    },
+    type: {
+      type: String,
+      enum: ["booking", "payment", "event_update", "reminder"],
+      required: true,
+    },
+    status: {
+      type: String,
+      enum: ["sent", "read"],
+      default: "sent",
+    },
+    sentAt: {
+      type: Date,
+      default: Date.now,
+    },
   },
   { timestamps: true }
 );

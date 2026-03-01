@@ -7,9 +7,12 @@ const attendeeSchema = new mongoose.Schema(
       ref: "Booking",
       required: true,
     },
-    name: { type: String, required: true },
-    email: { type: String, required: true },
-    checkInStatus: { type: Boolean, default: false },
+    name: String,
+    email: String,
+    checkInStatus: {
+      type: Boolean,
+      default: false,
+    },
   },
   { timestamps: true }
 );

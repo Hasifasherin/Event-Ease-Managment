@@ -1,7 +1,7 @@
 const jwt = require("jsonwebtoken");
 const User = require("../models/User");
 
-//  Authentication Middleware
+// Authentication Middleware
 exports.protect = async (req, res, next) => {
   let token;
 
@@ -32,7 +32,7 @@ exports.protect = async (req, res, next) => {
   }
 };
 
-//  Dynamic Role Authorization Middleware
+// Role Authorization Middleware
 exports.authorizeRoles = (...roles) => {
   return (req, res, next) => {
     if (!roles.includes(req.user.role)) {

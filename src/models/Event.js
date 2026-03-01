@@ -5,14 +5,21 @@ const eventSchema = new mongoose.Schema(
     title: { type: String, required: true },
     description: String,
     category: String,
-    startDate: Date,
-    endDate: Date,
+    startDate: { type: Date, required: true },
+    endDate: { type: Date, required: true },
     time: String,
     location: String,
-    eventType: { type: String, enum: ["online", "offline"] },
+    eventType: {
+      type: String,
+      enum: ["online", "offline"],
+      required: true,
+    },
     bannerImage: String,
-    status: { type: String, default: "upcoming" },
-
+    status: {
+      type: String,
+      enum: ["upcoming", "ongoing", "completed"],
+      default: "upcoming",
+    },
     organizerId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",

@@ -1,5 +1,6 @@
 const Booking = require("../models/Booking");
 const Ticket = require("../models/Ticket");
+const Event = require("../models/Event");
 const Notification = require("../models/Notification");
 
 /*
@@ -10,15 +11,9 @@ exports.createBooking = async (req, res) => {
   try {
     const { ticketId, quantity } = req.body;
 
-    if (!ticketId || !quantity) {
+    if (!ticketId || !quantity || quantity <= 0) {
       return res.status(400).json({
-        message: "Ticket ID and quantity are required",
-      });
-    }
-
-    if (quantity <= 0) {
-      return res.status(400).json({
-        message: "Quantity must be greater than 0",
+        message: "Valid ticket ID and quantity are required",
       });
     }
 
@@ -46,11 +41,9 @@ exports.createBooking = async (req, res) => {
       paymentStatus: "pending",
     });
 
-    // Deduct ticket quantity
     ticket.quantity -= quantity;
     await ticket.save();
 
-    // 🔔 Create Notification
     await Notification.create({
       userId: req.user._id,
       eventId: ticket.eventId,
@@ -91,7 +84,6 @@ exports.cancelBooking = async (req, res) => {
       });
     }
 
-    // Restore ticket quantity
     const ticket = await Ticket.findById(booking.ticketId);
 
     if (ticket) {
@@ -102,7 +94,6 @@ exports.cancelBooking = async (req, res) => {
     booking.status = "cancelled";
     await booking.save();
 
-    // 🔔 Create Notification
     await Notification.create({
       userId: booking.userId,
       eventId: booking.eventId,
@@ -120,7 +111,7 @@ exports.cancelBooking = async (req, res) => {
 };
 
 /*
-  GET MY BOOKINGS
+  GET MY BOOKINGS (User)
 */
 exports.getMyBookings = async (req, res) => {
   try {
@@ -137,27 +128,71 @@ exports.getMyBookings = async (req, res) => {
 
 /*
   GET SINGLE BOOKING
+  - User (owner)
+  - Organizer (event owner)
+  - Admin
 */
 exports.getSingleBooking = async (req, res) => {
   try {
     const booking = await Booking.findById(req.params.id)
       .populate("eventId")
-      .populate("ticketId");
+      .populate("ticketId")
+      .populate("userId", "name email");
 
     if (!booking) {
       return res.status(404).json({ message: "Booking not found" });
     }
 
-    if (
-      booking.userId.toString() !== req.user._id.toString() &&
-      req.user.role !== "admin"
-    ) {
-      return res.status(403).json({
-        message: "Not authorized to view this booking",
-      });
+    // Admin
+    if (req.user.role === "admin") {
+      return res.json(booking);
     }
 
-    res.json(booking);
+    // User owner
+    if (
+      req.user.role === "user" &&
+      booking.userId._id.toString() === req.user._id.toString()
+    ) {
+      return res.json(booking);
+    }
+
+    // Organizer owner
+    if (req.user.role === "organizer") {
+      const event = await Event.findById(booking.eventId);
+
+      if (
+        event &&
+        event.organizerId.toString() === req.user._id.toString()
+      ) {
+        return res.json(booking);
+      }
+    }
+
+    return res.status(403).json({
+      message: "Not authorized to view this booking",
+    });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+/*
+  ORGANIZER - GET BOOKINGS FOR MY EVENTS
+*/
+exports.getOrganizerBookings = async (req, res) => {
+  try {
+    const events = await Event.find({ organizerId: req.user._id });
+
+    const eventIds = events.map((e) => e._id);
+
+    const bookings = await Booking.find({
+      eventId: { $in: eventIds },
+    })
+      .populate("userId", "name email")
+      .populate("eventId", "title")
+      .sort({ createdAt: -1 });
+
+    res.json(bookings);
   } catch (error) {
     res.status(500).json({ message: error.message });
   }

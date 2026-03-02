@@ -20,10 +20,10 @@ router.get("/event/:eventId", getTicketsByEvent);
 // Get single ticket
 router.get("/:id", getSingleTicket);
 
-// Update ticket
+// Update ticket (Admin or Organizer)
 router.put("/:id", protect, updateTicket);
 
-// Delete ticket
+// Delete ticket (Admin or Organizer)
 router.delete("/:id", protect, deleteTicket);
 
 module.exports = router;

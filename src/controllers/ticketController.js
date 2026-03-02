@@ -9,9 +9,15 @@ exports.createTicket = async (req, res) => {
   try {
     const { eventId, name, type, price, quantity } = req.body;
 
-    if (!eventId || !name || !type || !price || !quantity) {
+    if (!eventId || !name || !type || price == null || quantity == null) {
       return res.status(400).json({
         message: "All fields are required",
+      });
+    }
+
+    if (price < 0 || quantity < 0) {
+      return res.status(400).json({
+        message: "Price and quantity must be positive values",
       });
     }
 
@@ -25,6 +31,14 @@ exports.createTicket = async (req, res) => {
     if (event.organizerId.toString() !== req.user._id.toString()) {
       return res.status(403).json({
         message: "Not authorized to add ticket to this event",
+      });
+    }
+
+    // Optional: Prevent duplicate ticket type for same event
+    const existingTicket = await Ticket.findOne({ eventId, type });
+    if (existingTicket) {
+      return res.status(400).json({
+        message: "This ticket type already exists for this event",
       });
     }
 
@@ -75,7 +89,7 @@ exports.getSingleTicket = async (req, res) => {
 };
 
 /*
-  Update Ticket (including quantity update)
+  Update Ticket
 */
 exports.updateTicket = async (req, res) => {
   try {
@@ -94,6 +108,19 @@ exports.updateTicket = async (req, res) => {
     ) {
       return res.status(403).json({
         message: "Not authorized to update this ticket",
+      });
+    }
+
+    // Validate price & quantity if updating
+    if (req.body.price && req.body.price < 0) {
+      return res.status(400).json({
+        message: "Price must be positive",
+      });
+    }
+
+    if (req.body.quantity && req.body.quantity < 0) {
+      return res.status(400).json({
+        message: "Quantity must be positive",
       });
     }
 

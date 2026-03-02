@@ -1,7 +1,8 @@
 const Event = require("../models/Event");
+const Booking = require("../models/Booking");
 
 /*
-  Utility: Update Event Status Based on Date
+  Utility: Get Event Status Based on Date
 */
 const getEventStatus = (startDate, endDate) => {
   const now = new Date();
@@ -13,8 +14,8 @@ const getEventStatus = (startDate, endDate) => {
 };
 
 /*
-  Create Event
-  Only Organizer
+  CREATE EVENT
+  Organizer Only
 */
 exports.createEvent = async (req, res) => {
   try {
@@ -59,28 +60,48 @@ exports.createEvent = async (req, res) => {
 };
 
 /*
-  Get All Events (Public)
+  GET ALL EVENTS (Public + Filters + Search + Pagination)
 */
 exports.getEvents = async (req, res) => {
   try {
-    const events = await Event.find()
-      .populate("organizerId", "name email role")
-      .sort({ createdAt: -1 });
+    const { status, category, search, page = 1, limit = 10 } = req.query;
 
-    res.json(events);
+    let query = {};
+
+    if (status) query.status = status;
+    if (category) query.category = category;
+
+    if (search) {
+      query.title = { $regex: search, $options: "i" };
+    }
+
+    const events = await Event.find(query)
+      .populate("organizerId", "name email")
+      .sort({ createdAt: -1 })
+      .skip((page - 1) * limit)
+      .limit(parseInt(limit));
+
+    const total = await Event.countDocuments(query);
+
+    res.json({
+      total,
+      page: parseInt(page),
+      pages: Math.ceil(total / limit),
+      events,
+    });
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
 };
 
 /*
-  Get Single Event
+  GET SINGLE EVENT
 */
 exports.getSingleEvent = async (req, res) => {
   try {
     const event = await Event.findById(req.params.id).populate(
       "organizerId",
-      "name email role"
+      "name email"
     );
 
     if (!event) {
@@ -94,7 +115,22 @@ exports.getSingleEvent = async (req, res) => {
 };
 
 /*
-  Update Event
+  GET ORGANIZER EVENTS
+*/
+exports.getOrganizerEvents = async (req, res) => {
+  try {
+    const events = await Event.find({
+      organizerId: req.user._id,
+    }).sort({ createdAt: -1 });
+
+    res.json(events);
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+/*
+  UPDATE EVENT
   Organizer (own event) OR Admin
 */
 exports.updateEvent = async (req, res) => {
@@ -105,7 +141,6 @@ exports.updateEvent = async (req, res) => {
       return res.status(404).json({ message: "Event not found" });
     }
 
-    // Authorization check
     if (
       req.user.role !== "admin" &&
       event.organizerId.toString() !== req.user._id.toString()
@@ -115,7 +150,6 @@ exports.updateEvent = async (req, res) => {
       });
     }
 
-    // Recalculate status if dates are updated
     const startDate = req.body.startDate || event.startDate;
     const endDate = req.body.endDate || event.endDate;
 
@@ -134,7 +168,7 @@ exports.updateEvent = async (req, res) => {
 };
 
 /*
-  Delete Event
+  DELETE EVENT
   Organizer (own event) OR Admin
 */
 exports.deleteEvent = async (req, res) => {
@@ -145,13 +179,21 @@ exports.deleteEvent = async (req, res) => {
       return res.status(404).json({ message: "Event not found" });
     }
 
-    // Authorization check
     if (
       req.user.role !== "admin" &&
       event.organizerId.toString() !== req.user._id.toString()
     ) {
       return res.status(403).json({
         message: "Not authorized to delete this event",
+      });
+    }
+
+    // 🚨 Prevent delete if bookings exist
+    const bookings = await Booking.find({ eventId: event._id });
+
+    if (bookings.length > 0) {
+      return res.status(400).json({
+        message: "Cannot delete event with existing bookings",
       });
     }
 

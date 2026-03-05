@@ -17,7 +17,6 @@ router.post("/", protect, authorizeRoles("organizer"), createEvent);
 
 // Public routes
 router.get("/", getEvents);
-router.get("/:id", getSingleEvent);
 
 // Organizer own events
 router.get(
@@ -26,6 +25,9 @@ router.get(
   authorizeRoles("organizer"),
   getOrganizerEvents
 );
+
+router.get("/:id", getSingleEvent);
+
 
 // Update & Delete
 router.put("/:id", protect, updateEvent);

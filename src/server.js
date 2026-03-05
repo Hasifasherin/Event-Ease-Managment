@@ -6,35 +6,32 @@ const helmet = require("helmet");
 
 const connectDB = require("./config/db");
 
-// Load environment variables
 dotenv.config();
-
-// Connect Database
 connectDB();
 
 const app = express();
 
-/* ========================
-   GLOBAL MIDDLEWARES
-======================== */
+/* ================= MIDDLEWARES ================= */
 
-// Security headers
 app.use(helmet());
 
-// Enable CORS
-app.use(cors());
+app.use(
+  cors({
+    origin: [
+      "http://localhost:5173", 
+      process.env.FRONTEND_URL, 
+    ].filter(Boolean),
+    credentials: true,
+  })
+);
 
-// Logger (dev mode only)
 if (process.env.NODE_ENV === "development") {
   app.use(morgan("dev"));
 }
 
-// Body parser
 app.use(express.json());
 
-/* ========================
-   ROUTES
-======================== */
+/* ================= ROUTES ================= */
 
 app.use("/api/auth", require("./routes/authRoutes"));
 app.use("/api/events", require("./routes/eventRoutes"));
@@ -43,27 +40,21 @@ app.use("/api/bookings", require("./routes/bookingRoutes"));
 app.use("/api/payments", require("./routes/paymentRoutes"));
 app.use("/api/notifications", require("./routes/notificationRoutes"));
 app.use("/api/attendees", require("./routes/attendeeRoutes"));
-app.use("/api/sliders", require("./routes/sliderRoutes")); 
+app.use("/api/sliders", require("./routes/sliderRoutes"));
 app.use("/api/admin", require("./routes/adminRoutes"));
 app.use("/api/organizer", require("./routes/organizerRoutes"));
-// Base Route
+
 app.get("/", (req, res) => {
   res.json({ message: "EventEase API is running..." });
 });
 
-/* ========================
-   404 HANDLER
-======================== */
+/* ================= 404 ================= */
 
-app.use((req, res, next) => {
-  res.status(404).json({
-    message: "Route not found",
-  });
+app.use((req, res) => {
+  res.status(404).json({ message: "Route not found" });
 });
 
-/* ========================
-   GLOBAL ERROR HANDLER
-======================== */
+/* ================= ERROR HANDLER ================= */
 
 app.use((err, req, res, next) => {
   console.error(err.stack);
@@ -76,5 +67,5 @@ app.use((err, req, res, next) => {
 const PORT = process.env.PORT || 5000;
 
 app.listen(PORT, () => {
-  console.log(` Server running on port ${PORT}`);
+  console.log(`Server running on port ${PORT}`);
 });

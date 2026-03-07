@@ -6,6 +6,8 @@ const {
   getAllUsers,
   getAllOrganizers,
   getAdminDashboard,
+  toggleBlockUser,
+  deleteUser
 } = require("../controllers/adminController");
 
 const { protect, adminOnly } = require("../middleware/authMiddleware");
@@ -14,4 +16,6 @@ router.get("/dashboard", protect, adminOnly, getAdminDashboard);
 router.get("/users", protect, adminOnly, getAllUsers);
 router.get("/organizers", protect, adminOnly, getAllOrganizers);
 
+router.patch("/users/:id/block", protect, adminOnly, toggleBlockUser);
+router.delete("/users/:id", protect, adminOnly, deleteUser);
 module.exports = router;

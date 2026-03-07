@@ -1,82 +1,97 @@
 const Slider = require("../models/Slider");
 const cloudinary = require("../config/cloudinary");
 
-/*
-  ADMIN - CREATE SLIDER
-*/
-exports.createSlider = async (req, res) => {
-  try {
-    if (!req.file) {
-      return res.status(400).json({ message: "Image is required" });
-    }
-
-    const { title, subtitle, isActive } = req.body;
-
-    if (!title) {
-      return res.status(400).json({ message: "Title is required" });
-    }
-
-    const slider = await Slider.create({
-      title,
-      subtitle,
-      image: req.file.path,
-      cloudinaryId: req.file.filename,
-      isActive: isActive ?? true,
-    });
-
-    res.status(201).json(slider);
-  } catch (error) {
-    res.status(500).json({ message: error.message });
-  }
-};
-
-/*
-  GET ACTIVE SLIDERS (Public)
-*/
-exports.getSliders = async (req, res) => {
+/* ================= GET ACTIVE SLIDERS (PUBLIC) ================= */
+exports.getSliders = async (_req, res) => {
   try {
     const sliders = await Slider.find({ isActive: true }).sort({
       createdAt: -1,
     });
 
-    res.json(sliders);
+    res.status(200).json({
+      success: true,
+      data: sliders,
+    });
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    console.error("FETCH SLIDERS ERROR 👉", error);
+    res.status(500).json({
+      success: false,
+      message: "Failed to fetch sliders",
+    });
   }
 };
 
-/*
-  ADMIN - GET ALL SLIDERS
-*/
-exports.getAllSliders = async (req, res) => {
+/* ================= GET ALL SLIDERS (ADMIN) ================= */
+exports.getAllSliders = async (_req, res) => {
   try {
     const sliders = await Slider.find().sort({ createdAt: -1 });
-    res.json(sliders);
+
+    res.status(200).json({
+      success: true,
+      data: sliders,
+    });
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    console.error("FETCH ALL SLIDERS ERROR 👉", error);
+    res.status(500).json({
+      success: false,
+      message: "Failed to fetch sliders",
+    });
   }
 };
 
-/*
-  ADMIN - UPDATE SLIDER
-*/
+/* ================= CREATE SLIDER ================= */
+exports.createSlider = async (req, res) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({
+        success: false,
+        message: "Image is required",
+      });
+    }
+
+    const { title, subtitle } = req.body;
+
+    const slider = await Slider.create({
+      title,
+      subtitle,
+      imageUrl: req.file.path, // cloudinary URL
+      imagePublicId: req.file.filename, // cloudinary public id
+      createdBy: req.user?.id,
+    });
+
+    res.status(201).json({
+      success: true,
+      data: slider,
+    });
+  } catch (error) {
+    console.error("CREATE SLIDER ERROR 👉", error);
+    res.status(500).json({
+      success: false,
+      message: "Failed to create slider",
+    });
+  }
+};
+
+/* ================= UPDATE SLIDER ================= */
 exports.updateSlider = async (req, res) => {
   try {
     const slider = await Slider.findById(req.params.id);
 
     if (!slider) {
-      return res.status(404).json({ message: "Slider not found" });
+      return res.status(404).json({
+        success: false,
+        message: "Slider not found",
+      });
     }
 
-    // If new image uploaded
+    // ✅ If new image uploaded → delete old image from cloud
     if (req.file) {
-      // Delete old image
-      if (slider.cloudinaryId) {
-        await cloudinary.uploader.destroy(slider.cloudinaryId);
+      if (slider.imagePublicId) {
+        await cloudinary.uploader.destroy(slider.imagePublicId);
       }
 
-      slider.image = req.file.path;
-      slider.cloudinaryId = req.file.filename;
+      slider.imageUrl = req.file.path;
+      slider.imagePublicId = req.file.filename;
     }
 
     slider.title = req.body.title ?? slider.title;
@@ -85,31 +100,47 @@ exports.updateSlider = async (req, res) => {
 
     await slider.save();
 
-    res.json(slider);
+    res.status(200).json({
+      success: true,
+      data: slider,
+    });
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    console.error("UPDATE SLIDER ERROR 👉", error);
+    res.status(500).json({
+      success: false,
+      message: "Failed to update slider",
+    });
   }
 };
 
-/*
-  ADMIN - DELETE SLIDER
-*/
+/* ================= DELETE SLIDER ================= */
 exports.deleteSlider = async (req, res) => {
   try {
     const slider = await Slider.findById(req.params.id);
 
     if (!slider) {
-      return res.status(404).json({ message: "Slider not found" });
+      return res.status(404).json({
+        success: false,
+        message: "Slider not found",
+      });
     }
 
-    if (slider.cloudinaryId) {
-      await cloudinary.uploader.destroy(slider.cloudinaryId);
+    // ✅ Delete image from cloud
+    if (slider.imagePublicId) {
+      await cloudinary.uploader.destroy(slider.imagePublicId);
     }
 
     await slider.deleteOne();
 
-    res.json({ message: "Slider deleted successfully" });
+    res.status(200).json({
+      success: true,
+      message: "Slider deleted successfully",
+    });
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    console.error("DELETE SLIDER ERROR 👉", error);
+    res.status(500).json({
+      success: false,
+      message: "Failed to delete slider",
+    });
   }
 };

@@ -12,10 +12,10 @@ const {
 const { protect, adminOnly } = require("../middleware/authMiddleware");
 const upload = require("../middleware/upload");
 
-// Public
+/* ================= PUBLIC ================= */
 router.get("/", getSliders);
 
-// Admin
+/* ================= ADMIN ================= */
 router.get("/all", protect, adminOnly, getAllSliders);
 
 router.post(

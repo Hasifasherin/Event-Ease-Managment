@@ -1,5 +1,6 @@
 const express = require("express");
 const router = express.Router();
+
 const {
   createBooking,
   cancelBooking,
@@ -11,13 +12,26 @@ const {
 
 const { protect, authorizeRoles } = require("../middleware/authMiddleware");
 
+/* ================= BOOKINGS ================= */
+
+// 🔥 ADMIN - GET ALL BOOKINGS (PUT THIS FIRST)
+router.get(
+  "/",
+  protect,
+  authorizeRoles("admin"),
+  getAllBookings
+);
+
+// User create
 router.post("/", protect, createBooking);
 
+// Cancel booking
 router.put("/:id/cancel", protect, cancelBooking);
 
+// My bookings
 router.get("/my-bookings", protect, getMyBookings);
 
-// NEW - Organizer bookings
+// Organizer bookings
 router.get(
   "/organizer",
   protect,
@@ -25,8 +39,7 @@ router.get(
   getOrganizerBookings
 );
 
+// Single booking (KEEP THIS LAST)
 router.get("/:id", protect, getSingleBooking);
-
-router.get("/", protect, authorizeRoles("admin"), getAllBookings);
 
 module.exports = router;

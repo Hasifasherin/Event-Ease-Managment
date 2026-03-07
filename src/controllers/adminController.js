@@ -88,3 +88,30 @@ exports.getAdminDashboard = async (req, res) => {
     res.status(500).json({ message: error.message });
   }
 };
+
+exports.toggleBlockUser = async (req, res) => {
+  try {
+    const user = await User.findById(req.params.id);
+
+    user.isBlocked = !user.isBlocked;
+
+    await user.save();
+
+    res.json({
+      message: user.isBlocked ? "User blocked" : "User unblocked",
+      user
+    });
+  } catch (error) {
+    res.status(500).json({ message: "Server error" });
+  }
+};
+
+exports.deleteUser = async (req, res) => {
+  try {
+    await User.findByIdAndDelete(req.params.id);
+
+    res.json({ message: "User deleted successfully" });
+  } catch (error) {
+    res.status(500).json({ message: "Server error" });
+  }
+};

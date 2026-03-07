@@ -8,16 +8,23 @@ const generateToken = (id, role) => {
   });
 };
 
+/* =========================
+   SIGNUP
+========================= */
 exports.signup = async (req, res) => {
   try {
     const { name, email, password, role } = req.body;
 
+    // check existing user
     const userExists = await User.findOne({ email });
-    if (userExists)
+    if (userExists) {
       return res.status(400).json({ message: "User already exists" });
+    }
 
+    // hash password
     const hashedPassword = await bcrypt.hash(password, 10);
 
+    // create user
     const user = await User.create({
       name,
       email,
@@ -37,17 +44,31 @@ exports.signup = async (req, res) => {
   }
 };
 
+/* =========================
+   LOGIN
+========================= */
 exports.login = async (req, res) => {
   try {
     const { email, password } = req.body;
 
     const user = await User.findOne({ email });
-    if (!user)
+
+    if (!user) {
       return res.status(400).json({ message: "Invalid credentials" });
+    }
+
+    // 🚨 CHECK IF BLOCKED
+    if (user.isBlocked) {
+      return res
+        .status(403)
+        .json({ message: "Your account has been blocked by admin" });
+    }
 
     const isMatch = await bcrypt.compare(password, user.password);
-    if (!isMatch)
+
+    if (!isMatch) {
       return res.status(400).json({ message: "Invalid credentials" });
+    }
 
     res.json({
       _id: user._id,
@@ -61,7 +82,9 @@ exports.login = async (req, res) => {
   }
 };
 
-// Get Logged In User Profile
+/* =========================
+   GET PROFILE
+========================= */
 exports.getProfile = async (req, res) => {
   res.json(req.user);
 };

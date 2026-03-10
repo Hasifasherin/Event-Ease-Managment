@@ -28,7 +28,6 @@ exports.createEvent = async (req, res) => {
       time,
       location,
       eventType,
-      bannerImage,
     } = req.body;
 
     if (!title || !startDate || !endDate || !eventType) {
@@ -36,6 +35,9 @@ exports.createEvent = async (req, res) => {
         message: "Required fields missing",
       });
     }
+
+    // ✅ Get uploaded image from multer
+    const bannerImage = req.file ? req.file.path : null;
 
     const status = getEventStatus(startDate, endDate);
 
@@ -48,17 +50,17 @@ exports.createEvent = async (req, res) => {
       time,
       location,
       eventType,
-      bannerImage,
+      bannerImage, // ✅ From cloudinary
       status,
       organizerId: req.user._id,
     });
 
     res.status(201).json(event);
   } catch (error) {
+    console.error("CREATE EVENT ERROR 👉", error);
     res.status(500).json({ message: error.message });
   }
 };
-
 /*
   GET ALL EVENTS (Public + Filters + Search + Pagination)
 */
@@ -146,27 +148,36 @@ exports.updateEvent = async (req, res) => {
       event.organizerId.toString() !== req.user._id.toString()
     ) {
       return res.status(403).json({
-        message: "Not authorized to update this event",
+        message: "Not authorized",
       });
+    }
+
+    // ✅ If new image uploaded → replace old
+    if (req.file) {
+      event.bannerImage = req.file.path;
     }
 
     const startDate = req.body.startDate || event.startDate;
     const endDate = req.body.endDate || event.endDate;
 
-    req.body.status = getEventStatus(startDate, endDate);
+    event.title = req.body.title ?? event.title;
+    event.description = req.body.description ?? event.description;
+    event.category = req.body.category ?? event.category;
+    event.startDate = startDate;
+    event.endDate = endDate;
+    event.time = req.body.time ?? event.time;
+    event.location = req.body.location ?? event.location;
+    event.eventType = req.body.eventType ?? event.eventType;
+    event.status = getEventStatus(startDate, endDate);
 
-    const updatedEvent = await Event.findByIdAndUpdate(
-      req.params.id,
-      req.body,
-      { new: true, runValidators: true }
-    );
+    await event.save();
 
-    res.json(updatedEvent);
+    res.json(event);
   } catch (error) {
+    console.error("UPDATE EVENT ERROR 👉", error);
     res.status(500).json({ message: error.message });
   }
 };
-
 /*
   DELETE EVENT
   Organizer (own event) OR Admin

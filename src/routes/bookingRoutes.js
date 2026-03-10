@@ -14,32 +14,22 @@ const { protect, authorizeRoles } = require("../middleware/authMiddleware");
 
 /* ================= BOOKINGS ================= */
 
-// 🔥 ADMIN - GET ALL BOOKINGS (PUT THIS FIRST)
-router.get(
-  "/",
-  protect,
-  authorizeRoles("admin"),
-  getAllBookings
-);
+//  ADMIN - GET ALL BOOKINGS (keep this first)
+router.get("/", protect, authorizeRoles("admin"), getAllBookings);
 
-// User create
+// User create booking
 router.post("/", protect, createBooking);
 
 // Cancel booking
 router.put("/:id/cancel", protect, cancelBooking);
 
-// My bookings
+// Get my bookings (user)
 router.get("/my-bookings", protect, getMyBookings);
 
 // Organizer bookings
-router.get(
-  "/organizer",
-  protect,
-  authorizeRoles("organizer"),
-  getOrganizerBookings
-);
+router.get("/organizer", protect, authorizeRoles("organizer"), getOrganizerBookings);
 
-// Single booking (KEEP THIS LAST)
+// Get single booking (keep this last)
 router.get("/:id", protect, getSingleBooking);
 
 module.exports = router;

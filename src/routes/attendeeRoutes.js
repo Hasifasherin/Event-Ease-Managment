@@ -1,7 +1,6 @@
 const express = require("express");
 const router = express.Router();
 const {
-  createAttendees,
   getAttendeesByBooking,
   checkInAttendee,
   getEventAttendees,
@@ -9,11 +8,12 @@ const {
 
 const { protect, authorizeRoles } = require("../middleware/authMiddleware");
 
-router.post("/", protect, createAttendees);
+/* ================= ATTENDEE ROUTES ================= */
 
+// Get attendees for a specific booking (User/Admin/Organizer)
 router.get("/:bookingId", protect, getAttendeesByBooking);
 
-// NEW
+// Get all attendees for an event (Organizer/Admin)
 router.get(
   "/event/:eventId",
   protect,
@@ -21,10 +21,12 @@ router.get(
   getEventAttendees
 );
 
+// Check-in attendee (Organizer/Admin)
 router.put(
   "/checkin/:id",
   protect,
   authorizeRoles("organizer", "admin"),
   checkInAttendee
 );
+
 module.exports = router;

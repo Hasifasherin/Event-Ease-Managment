@@ -101,7 +101,7 @@ exports.updateTicket = async (req, res) => {
 
     const event = await Event.findById(ticket.eventId);
 
-    // Admin OR event owner
+    // ✅ Only owner OR admin
     if (
       req.user.role !== "admin" &&
       event.organizerId.toString() !== req.user._id.toString()
@@ -111,14 +111,14 @@ exports.updateTicket = async (req, res) => {
       });
     }
 
-    // Validate price & quantity if updating
-    if (req.body.price && req.body.price < 0) {
+    // Validation
+    if (req.body.price !== undefined && req.body.price < 0) {
       return res.status(400).json({
         message: "Price must be positive",
       });
     }
 
-    if (req.body.quantity && req.body.quantity < 0) {
+    if (req.body.quantity !== undefined && req.body.quantity < 0) {
       return res.status(400).json({
         message: "Quantity must be positive",
       });
@@ -131,11 +131,11 @@ exports.updateTicket = async (req, res) => {
     );
 
     res.json(updatedTicket);
+
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
 };
-
 /*
   Delete Ticket
 */
@@ -149,7 +149,7 @@ exports.deleteTicket = async (req, res) => {
 
     const event = await Event.findById(ticket.eventId);
 
-    // Admin OR event owner
+    // ✅ Only owner OR admin
     if (
       req.user.role !== "admin" &&
       event.organizerId.toString() !== req.user._id.toString()
@@ -162,6 +162,7 @@ exports.deleteTicket = async (req, res) => {
     await ticket.deleteOne();
 
     res.json({ message: "Ticket deleted successfully" });
+
   } catch (error) {
     res.status(500).json({ message: error.message });
   }

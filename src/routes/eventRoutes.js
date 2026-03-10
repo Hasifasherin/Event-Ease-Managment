@@ -11,14 +11,21 @@ const {
 } = require("../controllers/eventController");
 
 const { protect, authorizeRoles } = require("../middleware/authMiddleware");
+const upload = require("../middleware/upload");
 
-// Create event (Organizer only)
-router.post("/", protect, authorizeRoles("organizer"), createEvent);
-
-// Public routes
+/* ================= PUBLIC ================= */
 router.get("/", getEvents);
+router.get("/:id", getSingleEvent);
 
-// Organizer own events
+/* ================= ORGANIZER ================= */
+router.post(
+  "/",
+  protect,
+  authorizeRoles("organizer"),
+  upload.single("bannerImage"), // ✅ Image Upload
+  createEvent
+);
+
 router.get(
   "/organizer/my-events",
   protect,
@@ -26,11 +33,19 @@ router.get(
   getOrganizerEvents
 );
 
-router.get("/:id", getSingleEvent);
+router.put(
+  "/:id",
+  protect,
+  authorizeRoles("organizer"),
+  upload.single("bannerImage"),
+  updateEvent
+);
 
-
-// Update & Delete
-router.put("/:id", protect, updateEvent);
-router.delete("/:id", protect, deleteEvent);
+router.delete(
+  "/:id",
+  protect,
+  authorizeRoles("organizer"),
+  deleteEvent
+);
 
 module.exports = router;

@@ -46,7 +46,7 @@ exports.makePayment = async (req, res) => {
 
     const payment = await Payment.create({
       bookingId,
-      amount: booking.totalAmount,
+      amount: booking.total, // ✅ fixed: was booking.totalAmount
       paymentMethod,
       transactionId,
       paymentStatus: "success",
@@ -57,6 +57,7 @@ exports.makePayment = async (req, res) => {
     booking.status = "confirmed";
     await booking.save();
 
+    // Notify user
     await Notification.create({
       userId: booking.userId,
       eventId: booking.eventId,
@@ -69,6 +70,7 @@ exports.makePayment = async (req, res) => {
       payment,
     });
   } catch (error) {
+    console.error("Payment error:", error);
     res.status(500).json({ message: error.message });
   }
 };

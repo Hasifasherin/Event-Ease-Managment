@@ -9,41 +9,71 @@ const Notification = require("../models/Notification");
 */
 exports.createBooking = async (req, res) => {
   try {
-    const { ticketId, quantity } = req.body;
+    const { ticketId, quantity, attendees } = req.body;
 
+    // Validate input
     if (!ticketId || !quantity || quantity <= 0) {
       return res.status(400).json({
         message: "Valid ticket ID and quantity are required",
       });
     }
 
-    const ticket = await Ticket.findById(ticketId);
-
-    if (!ticket) {
-      return res.status(404).json({ message: "Ticket not found" });
-    }
-
-    if (ticket.quantity < quantity) {
+    if (!attendees || !Array.isArray(attendees) || attendees.length !== quantity) {
       return res.status(400).json({
-        message: "Not enough tickets available",
+        message: "Attendee details must match the quantity of tickets",
       });
     }
 
-    const totalAmount = ticket.price * quantity;
+    // Check all attendee fields
+    for (const [i, a] of attendees.entries()) {
+      if (!a.name || !a.email || !a.phone) {
+        return res.status(400).json({
+          message: `All fields are required for attendee ${i + 1}`,
+        });
+      }
+    }
 
+    // Fetch ticket
+    const ticket = await Ticket.findById(ticketId);
+    if (!ticket) return res.status(404).json({ message: "Ticket not found" });
+
+    // Ensure ticket has name and price
+    if (!ticket.name || ticket.price === undefined) {
+      console.error("Ticket missing required fields:", ticket);
+      return res.status(500).json({
+        message: "Ticket data is incomplete. Cannot create booking.",
+      });
+    }
+
+    if (ticket.quantity < quantity) {
+      return res.status(400).json({ message: "Not enough tickets available" });
+    }
+
+    // Calculate amounts
+    const subtotal = ticket.price * quantity;
+    const discount = ticket.discount || 0;
+    const total = subtotal - discount;
+
+    // Create booking
     const booking = await Booking.create({
       userId: req.user._id,
       eventId: ticket.eventId,
       ticketId,
+      ticketInfo: { name: ticket.name, price: ticket.price }, // snapshot
+      attendees,
       quantity,
-      totalAmount,
+      subtotal,
+      discount,
+      total,
       status: "confirmed",
       paymentStatus: "pending",
     });
 
+    // Reduce ticket quantity
     ticket.quantity -= quantity;
     await ticket.save();
 
+    // Create notification
     await Notification.create({
       userId: req.user._id,
       eventId: ticket.eventId,
@@ -56,6 +86,7 @@ exports.createBooking = async (req, res) => {
       booking,
     });
   } catch (error) {
+    console.error("Booking creation error:", error);
     res.status(500).json({ message: error.message });
   }
 };
@@ -73,15 +104,11 @@ exports.cancelBooking = async (req, res) => {
     }
 
     if (booking.userId.toString() !== req.user._id.toString()) {
-      return res.status(403).json({
-        message: "Not authorized to cancel this booking",
-      });
+      return res.status(403).json({ message: "Not authorized to cancel this booking" });
     }
 
     if (booking.status === "cancelled") {
-      return res.status(400).json({
-        message: "Booking already cancelled",
-      });
+      return res.status(400).json({ message: "Booking already cancelled" });
     }
 
     const ticket = await Ticket.findById(booking.ticketId);
@@ -92,6 +119,7 @@ exports.cancelBooking = async (req, res) => {
     }
 
     booking.status = "cancelled";
+    booking.paymentStatus = "cancelled";
     await booking.save();
 
     await Notification.create({
@@ -101,10 +129,7 @@ exports.cancelBooking = async (req, res) => {
       type: "booking",
     });
 
-    res.json({
-      message: "Booking cancelled successfully",
-      booking,
-    });
+    res.json({ message: "Booking cancelled successfully", booking });
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
@@ -143,34 +168,16 @@ exports.getSingleBooking = async (req, res) => {
       return res.status(404).json({ message: "Booking not found" });
     }
 
-    // Admin
-    if (req.user.role === "admin") {
-      return res.json(booking);
-    }
+    if (req.user.role === "admin") return res.json(booking);
 
-    // User owner
-    if (
-      req.user.role === "user" &&
-      booking.userId._id.toString() === req.user._id.toString()
-    ) {
-      return res.json(booking);
-    }
+    if (req.user.role === "user" && booking.userId._id.toString() === req.user._id.toString()) return res.json(booking);
 
-    // Organizer owner
     if (req.user.role === "organizer") {
       const event = await Event.findById(booking.eventId);
-
-      if (
-        event &&
-        event.organizerId.toString() === req.user._id.toString()
-      ) {
-        return res.json(booking);
-      }
+      if (event && event.organizerId.toString() === req.user._id.toString()) return res.json(booking);
     }
 
-    return res.status(403).json({
-      message: "Not authorized to view this booking",
-    });
+    return res.status(403).json({ message: "Not authorized to view this booking" });
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
@@ -182,12 +189,9 @@ exports.getSingleBooking = async (req, res) => {
 exports.getOrganizerBookings = async (req, res) => {
   try {
     const events = await Event.find({ organizerId: req.user._id });
-
     const eventIds = events.map((e) => e._id);
 
-    const bookings = await Booking.find({
-      eventId: { $in: eventIds },
-    })
+    const bookings = await Booking.find({ eventId: { $in: eventIds } })
       .populate("userId", "name email")
       .populate("eventId", "title")
       .sort({ createdAt: -1 });

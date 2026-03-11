@@ -9,19 +9,28 @@ exports.getDashboard = async (req, res) => {
   try {
     const organizerId = req.user._id;
 
-    // Total events created
-    const totalEvents = await Event.countDocuments({ organizerId });
-
     // Get organizer events
-    const events = await Event.find({ organizerId });
+    const events = await Event.find({ organizerId }).sort({ createdAt: -1 });
     const eventIds = events.map((e) => e._id);
 
-    // Total bookings for organizer events
+    // Total events
+    const totalEvents = events.length;
+
+    // Total bookings
     const totalBookings = await Booking.countDocuments({
       eventId: { $in: eventIds },
     });
 
-    // Total revenue (only paid bookings)
+    // Get recent bookings
+    const bookings = await Booking.find({
+      eventId: { $in: eventIds },
+    })
+      .populate("userId", "name email")
+      .populate("eventId", "title")
+      .sort({ createdAt: -1 })
+      .limit(5);
+
+    // Total revenue
     const payments = await Payment.find()
       .populate({
         path: "bookingId",
@@ -29,6 +38,7 @@ exports.getDashboard = async (req, res) => {
       });
 
     let totalRevenue = 0;
+
     payments.forEach((payment) => {
       if (payment.bookingId) {
         totalRevenue += payment.amount;
@@ -36,10 +46,15 @@ exports.getDashboard = async (req, res) => {
     });
 
     res.json({
-      totalEvents,
-      totalBookings,
-      totalRevenue,
+      stats: {
+        totalEvents,
+        totalBookings,
+        totalRevenue,
+      },
+      events,
+      bookings,
     });
+
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
